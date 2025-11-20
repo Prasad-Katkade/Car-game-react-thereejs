@@ -2,15 +2,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import cors from "cors";
 
-// ---------------------------
-// STORED JOYSTICK STATE
-// ---------------------------
 interface JoystickState {
-  x: number;
-  y: number;
-  angle: number;
-  distance: number;
-
   forward: boolean;
   backward: boolean;
   left: boolean;
@@ -19,19 +11,12 @@ interface JoystickState {
 
 // Default state
 let joystickState: JoystickState = {
-  x: 0,
-  y: 0,
-  angle: 0,
-  distance: 0,
   forward: false,
   backward: false,
   left: false,
   right: false,
 };
 
-// ---------------------------
-// EXPRESS SERVER
-// ---------------------------
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -41,9 +26,7 @@ app.get("/joystick", (req, res) => {
   res.json(joystickState);
 });
 
-// ---------------------------
-// WEBSOCKET SERVER
-// ---------------------------
+
 const wss = new WebSocketServer({ port: 8081 });
 
 wss.on("connection", (socket) => {
@@ -56,8 +39,7 @@ wss.on("connection", (socket) => {
     try {
       const data = JSON.parse(msg.toString());
 
-      // Expect data format:
-      // { x, y, angle, distance, forward, backward, left, right }
+     
       if (data.type === "joystick") {
         joystickState = {
           ...joystickState,
