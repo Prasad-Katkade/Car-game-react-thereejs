@@ -1,0 +1,19 @@
+@import "tailwindcss";
+html,body,#root {height:100%;margin:unset;}
+
+/* Keep existing library styles for mobile */
+.my-joystick-container {
+  position: fixed !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+  top: 1rem !important;      /* margin from top */
+  left: 13rem !important;     /* margin from left */
+  z-index: 50 !important;
+}
+
+/* Hide on md+ screens (desktop/tablet) */
+@media (min-width: 768px) {
+  .my-joystick-container {
+    display: none !important;
+  }
+}
