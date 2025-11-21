@@ -12,7 +12,7 @@ function App() {
   const left = useRef<boolean>(false);
   const right = useRef<boolean>(false);
   const [room, setRoom] = useState<string>("");
-  const BE_URL = "192.168.86.134:8080";
+  const BE_URL = "car-game-react-thereejs.onrender.com";
   const FE_URL = "https://f1-car-gamee.netlify.app/";
   const [showInfo, setShowInfo] = useState<boolean>(true);
 
@@ -26,7 +26,7 @@ function App() {
 
       // If URL has no code or invalid length — create a room
       if (!roomCode || roomCode.length !== 5) {
-        const res = await fetch(`http://${BE_URL}/create-room`);
+        const res = await fetch(`https://${BE_URL}/create-room`);
         const data = await res.json();
         roomCode = data.room;
 
@@ -37,7 +37,7 @@ function App() {
       // Set state to just the room code
       setRoom(FE_URL + roomCode);
 
-      const ws = new WebSocket(`ws://${BE_URL}/${roomCode}`);
+      const ws = new WebSocket(`wss://${BE_URL}/${roomCode}`);
       wsRef.current = ws;
 
       ws.onmessage = (e) => {
