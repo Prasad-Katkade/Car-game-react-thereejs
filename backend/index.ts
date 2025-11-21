@@ -1,7 +1,8 @@
 import express from "express";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import cors from "cors";
 
+// ----- TYPES -----
 interface JoystickState {
   forward: boolean;
   backward: boolean;
@@ -9,39 +10,47 @@ interface JoystickState {
   right: boolean;
 }
 
+// Extend WebSocket to include roomCode
+interface RoomWebSocket extends WebSocket {
+  roomCode?: string;
+}
+
+// ----- APP SETUP -----
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const rooms: Record<string, Set<any>> = {};
+// ----- IN-MEMORY STORAGE -----
+const rooms: Record<string, Set<RoomWebSocket>> = {};
 const joystickStates: Record<string, JoystickState> = {};
 
-function generateRoomCode() {
+// ----- UTILS -----
+function generateRoomCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let s = "";
-  for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+  let code = "";
+  for (let i = 0; i < 5; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
 }
 
+// ----- REST ENDPOINT -----
 app.get("/create-room", (req, res) => {
   const code = generateRoomCode();
   rooms[code] = new Set();
-  joystickStates[code] = {
-    forward: false,
-    backward: false,
-    left: false,
-    right: false,
-  };
+  joystickStates[code] = { forward: false, backward: false, left: false, right: false };
   res.json({ success: true, room: code });
 });
 
+// ----- WEBSOCKET SERVER -----
 const wss = new WebSocketServer({ noServer: true });
 const server = app.listen(8080, () => console.log("HTTP running on 8080"));
 
+// Handle WebSocket upgrades
 server.on("upgrade", (req, socket, head) => {
-  const roomCode = (req.url || "/").split("/")[1];
+  const roomCode = ((req.url || "/").split("/")[1] || "").toUpperCase();
 
-  if (!rooms[roomCode]) {
+  if (!roomCode || !rooms[roomCode]) {
     socket.write(
       "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n" +
         JSON.stringify({ success: false, error: "Room does not exist" })
@@ -60,42 +69,34 @@ server.on("upgrade", (req, socket, head) => {
   }
 
   wss.handleUpgrade(req, socket, head, (ws) => {
-    ws.roomCode = roomCode;
-    rooms[roomCode].add(ws);
-    wss.emit("connection", ws, req);
+    const client = ws as RoomWebSocket;
+    client.roomCode = roomCode;
+    if (!rooms[roomCode]) return; 
+    rooms[roomCode].add(client);
+    wss.emit("connection", client, req);
   });
 });
 
-wss.on("connection", (socket: any) => {
-  const room = socket.roomCode;
+// ----- WEBSOCKET CONNECTION HANDLER -----
+wss.on("connection", (socket: RoomWebSocket) => {
+  const room = socket.roomCode!;
+  // Send initial joystick state
+  socket.send(JSON.stringify({ success: true, type: "state", payload: joystickStates[room] }));
 
-  socket.send(
-    JSON.stringify({
-      success: true,
-      type: "state",
-      payload: joystickStates[room],
-    })
-  );
-
+  // Handle incoming messages
   socket.on("message", (msg: string) => {
     const data = JSON.parse(msg);
-
-    if (data.type === "joystick" && rooms[room] ) {
+    if (data.type === "joystick" && rooms[room]) {
       joystickStates[room] = { ...joystickStates[room], ...data.payload };
-
       rooms[room].forEach((client) => {
-        if (client.readyState === 1) {
-          client.send(
-            JSON.stringify({
-              type: "state",
-              payload: joystickStates[room],
-            })
-          );
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: "state", payload: joystickStates[room] }));
         }
       });
     }
   });
 
+  // Handle disconnects
   socket.on("close", () => {
     if (!rooms[room]) return;
     rooms[room].delete(socket);
