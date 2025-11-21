@@ -5,7 +5,7 @@ import {
   RapierRigidBody,
   RigidBody,
 } from "@react-three/rapier";
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useRef } from "react";
 import * as THREE from "three";
 
 interface CarTrackProps {
@@ -29,7 +29,6 @@ export default function CarTrack({
 
   const moveSpeed = useRef(25);
   const isOnFloor = useRef(true);
-  const [isCarMoving, setIsCarMoving] = useState(false);
 
   /** Vehicle Movement Logic */
   const handleMovement = (
@@ -59,15 +58,12 @@ export default function CarTrack({
       newVel.x = forwardVec.x * moveSpeed.current;
       newVel.z = forwardVec.z * moveSpeed.current;
       moveSpeed.current += 0.1;
-      setIsCarMoving(true);
     } else if (back) {
       newVel.x = -forwardVec.x * moveSpeed.current * 0.5;
       newVel.z = -forwardVec.z * moveSpeed.current * 0.5;
       moveSpeed.current -= 0.5;
-      setIsCarMoving(true);
     } else {
       moveSpeed.current = 25;
-      setIsCarMoving(false);
     }
 
     rb.setLinvel({ x: newVel.x, y: currentVel.y, z: newVel.z }, true);
